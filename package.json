@@ -1,42 +1,14 @@
 {
   "name": "fenace-madrasah",
-  "version": "1.1.0",
-  "description": "Fenace Madrasah - kas LPJ & seragam (offline)",
-  "author": "BY. Mbahjimut",
+  "version": "1.0.0",
+  "description": "Fenace Madrasah",
   "main": "main.js",
+  "scripts": { "start": "electron .", "dist": "electron-builder --win --x64" },
+  "devDependencies": { "electron": "^33.0.0", "electron-builder": "^25.0.0" },
   "build": {
-    "appId": "id.mbahjimut.fenace",
+    "appId": "id.madrasah.fenace",
     "productName": "Fenace Madrasah",
-    "files": [
-      "main.js",
-      "src/**/*",
-      "build/icon.png"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.ico",
-      "signAndEditExecutable": false
-    },
-    "portable": {
-      "artifactName": "Fenace-Madrasah-Portable-x64.exe"
-    },
-    "directories": {
-      "output": "dist"
-    }
-  },
-  "devDependencies": {
-    "electron": "^33.4.11",
-    "electron-builder": "^25.1.8"
-  },
-  "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder --win portable --x64 --publish never"
+    "files": ["main.js", "preload.js", "index.html", "manifest.json", "service-worker.js", "*.png", "*.ico"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] }
   }
 }

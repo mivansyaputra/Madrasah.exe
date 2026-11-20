@@ -1,34 +1,63 @@
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
-// Data disimpan di folder "DataFenace" di samping file .exe agar benar-benar portable
-try {
-  const base = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath);
-  const dir = path.join(base, 'DataFenace');
-  require('fs').mkdirSync(dir, { recursive: true });
-  app.setPath('userData', dir);
-} catch (e) {}
-if (!app.requestSingleInstanceLock()) app.quit();
-function buat() {
-  const w = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 900, minHeight: 600, show: false,
-    backgroundColor: '#03120d', icon: path.join(__dirname, 'build', 'icon.png'),
-    title: 'Fenace Madrasah',
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') }
+const fs = require('fs');
+
+let win;
+const logFile = () => path.join(app.getPath('userData'), 'fenace-log.txt');
+function log(m) {
+  try { fs.appendFileSync(logFile(), new Date().toISOString() + '  ' + m + '\n'); } catch (_) {}
+}
+function errorPage(title, detail) {
+  const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const html = '<body style="background:#03120d;color:#f8f3df;font:15px system-ui;padding:40px">' +
+    '<h2 style="color:#e6c364">' + esc(title) + '</h2><pre style="white-space:pre-wrap;color:#ff8a8a">' + esc(detail) + '</pre>' +
+    '<p>Log: ' + esc(logFile()) + '</p><p>Tekan F12 untuk melihat konsol.</p></body>';
+  return 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+}
+
+function createWindow() {
+  win = new BrowserWindow({
+    width: 1280, height: 800, show: false, backgroundColor: '#03120d', title: 'Fenace Madrasah',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true, nodeIntegration: false, sandbox: false
+    }
   });
   Menu.setApplicationMenu(null);
-  w.maximize(); w.once('ready-to-show', () => w.show());
-  w.loadFile(path.join(__dirname, 'src', 'index.html'));
-  w.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
-  w.webContents.on('will-navigate', (e, u) => { if (!u.startsWith('file:')) e.preventDefault(); });
-  w.webContents.on('before-input-event', (e, i) => { if (i.key === 'F11' && i.type === 'keyDown') w.setFullScreen(!w.isFullScreen()); });
+  win.once('ready-to-show', () => win.show());
+  setTimeout(() => { if (win && !win.isVisible()) win.show(); }, 3000);
+
+  const wc = win.webContents;
+  wc.on('before-input-event', (e, i) => {
+    if (i.type === 'keyDown' && (i.key === 'F12' || (i.control && i.shift && i.key.toLowerCase() === 'i'))) wc.toggleDevTools();
+  });
+  wc.on('console-message', (_e, level, msg, line, src) => { if (level >= 2) log('CONSOLE[' + level + '] ' + msg + ' (' + src + ':' + line + ')'); });
+  wc.on('did-fail-load', (_e, code, desc, url) => {
+    log('did-fail-load ' + code + ' ' + desc + ' ' + url);
+    win.loadURL(errorPage('Halaman gagal dimuat', code + ' ' + desc + '\n' + url));
+  });
+  wc.on('render-process-gone', (_e, d) => log('render-process-gone ' + JSON.stringify(d)));
+  wc.on('preload-error', (_e, p, err) => log('preload-error ' + p + ' ' + err));
+
+  const file = path.join(__dirname, 'index.html');
+  log('memuat ' + file + ' ada=' + fs.existsSync(file));
+  if (!fs.existsSync(file)) { win.loadURL(errorPage('index.html tidak ditemukan', file)); return; }
+  win.loadFile(file);
+
+  // Jika 8 detik kemudian isi halaman masih kosong, catat dan buka konsol otomatis
+  setTimeout(() => {
+    if (!win || win.isDestroyed()) return;
+    wc.executeJavaScript("({m:(document.querySelector('#m')||{innerHTML:''}).innerHTML.length,intro:!!document.querySelector('#intro')})")
+      .then(r => { log('cek tampilan ' + JSON.stringify(r)); if (!r.m) wc.openDevTools({ mode: 'detach' }); })
+      .catch(e => log('cek tampilan gagal ' + e));
+  }, 8000);
 }
-// Perbaikan bug Electron/Windows: setelah alert()/confirm() kolom ketik tidak bisa diketik.
-// Jendela dibuat kehilangan lalu mendapat fokus lagi supaya input aktif kembali.
-ipcMain.on('refocus', (e) => {
-  const w = BrowserWindow.fromWebContents(e.sender);
-  if (!w) return;
-  setTimeout(() => { try { w.blur(); w.focus(); w.webContents.focus(); } catch (x) {} }, 0);
-});
-app.whenReady().then(buat);
-app.on('second-instance', () => { const w = BrowserWindow.getAllWindows()[0]; if (w) { if (w.isMinimized()) w.restore(); w.focus(); } });
-app.on('window-all-closed', () => app.quit());
+
+ipcMain.on('refocus', () => { if (!win) return; win.blur(); win.focus(); win.webContents.focus(); });
+
+if (!app.requestSingleInstanceLock()) app.quit();
+else {
+  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  app.whenReady().then(createWindow);
+  app.on('window-all-closed', () => app.quit());
+}
