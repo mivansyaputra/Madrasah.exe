@@ -2,8 +2,15 @@ const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-// Banyak PC Windows menampilkan jendela kosong bila akselerasi GPU bermasalah
-app.disableHardwareAcceleration();
+// GPU aktif secara normal (lebih ringan). Hanya jika GPU crash, otomatis pindah ke mode software.
+const gpuFlag = path.join(app.getPath('userData'), 'no-gpu.flag');
+if (fs.existsSync(gpuFlag)) app.disableHardwareAcceleration();
+app.on('child-process-gone', (_e, d) => {
+  if (d.type === 'GPU' && !fs.existsSync(gpuFlag)) {
+    try { fs.mkdirSync(path.dirname(gpuFlag), { recursive: true }); fs.writeFileSync(gpuFlag, '1'); } catch (_) {}
+    app.relaunch(); app.exit(0);
+  }
+});
 
 let win;
 const logFile = () => path.join(app.getPath('userData'), 'fenace-log.txt');
