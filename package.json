@@ -3,12 +3,22 @@
   "version": "1.0.0",
   "description": "Fenace Madrasah",
   "main": "main.js",
-  "scripts": { "start": "electron .", "dist": "electron-builder --win --x64" },
-  "devDependencies": { "electron": "^33.0.0", "electron-builder": "^25.0.0" },
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
   "build": {
     "appId": "id.madrasah.fenace",
     "productName": "Fenace Madrasah",
-    "files": ["main.js", "preload.js", "index.html", "manifest.json", "service-worker.js", "*.png", "*.ico"],
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] }
+    "files": ["main.js", "preload.js", "index.html", "icon.ico", "icon.png"],
+    "win": {
+      "icon": "icon.ico",
+      "artifactName": "Fenace-Madrasah-Portable-x64.exe",
+      "target": [{ "target": "portable", "arch": ["x64"] }]
+    }
   }
 }

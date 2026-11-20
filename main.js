@@ -2,6 +2,9 @@ const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Banyak PC Windows menampilkan jendela kosong bila akselerasi GPU bermasalah
+app.disableHardwareAcceleration();
+
 let win;
 const logFile = () => path.join(app.getPath('userData'), 'fenace-log.txt');
 function log(m) {
@@ -17,7 +20,7 @@ function errorPage(title, detail) {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280, height: 800, show: false, backgroundColor: '#03120d', title: 'Fenace Madrasah',
+    width: 1280, height: 800, show: false, backgroundColor: '#03120d', title: 'Fenace Madrasah', icon: path.join(__dirname, 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: false
